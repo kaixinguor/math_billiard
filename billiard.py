@@ -72,7 +72,7 @@ def simulate_bounce(S1_center, S1_radius, S2_center, S2_radius, p1, p2, iteratio
     print("start: normal_S1: ", normal_S1, ", normal_S2: ", normal_S2)
     
 
-    for iter in range(iterations):
+    for iter in range(1, iterations+1):
         print(f"iter {iter}")
 
         # 从p1射线反弹
@@ -108,6 +108,14 @@ def plot():
     plt.plot(circle_S2[:, 0], circle_S2[:, 1], label="S2")
     plt.scatter(*zip(*points_S1), color="red", label="Bounce on S1")
     plt.scatter(*zip(*points_S2), color="blue", label="Bounce on S2")
+
+    # 添加迭代次数标签
+    for i, point in enumerate(points_S1):
+        plt.text(point[0], point[1], f"iter {i}", color="red", fontsize=9, ha="left", va="bottom")
+    
+    for i, point in enumerate(points_S2):
+        plt.text(point[0], point[1], f"iter {i}", color="blue", fontsize=9, ha="left", va="bottom")
+
     plt.legend()
     plt.axis("equal")
     plt.show()
@@ -128,6 +136,6 @@ if __name__ == '__main__':
     plot()
 
     # 进行模拟
-    points_S1, points_S2 = simulate_bounce(S1_center, S1_radius, S2_center, S2_radius, p1, p2, iterations=2)
+    points_S1, points_S2 = simulate_bounce(S1_center, S1_radius, S2_center, S2_radius, p1, p2, iterations=10)
 
     plot()
