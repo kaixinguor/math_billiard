@@ -1,10 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
-
 from scipy.optimize import fsolve
-from scipy.optimize import minimize
-
-import cmath
+import argparse
 
 # Superellipse equations and their gradients
 def superellipse_K(x, y):
@@ -18,15 +15,11 @@ def superellipse_T(x, y):
 def safe_cubic_root(x):
     if np.isnan(x) or np.isinf(x):
         return 0 # Or return some default value
-    
-    # return cmath.exp(cmath.log(x) / 3)
+
     return np.cbrt(x)
 
 def gradient_superellipse_T(x, y):
     """ Gradient of the superellipse T """
-    # df_dx = (4/3) * x**(1/3)
-    # df_dy = (4/3) * y**(1/3)
-
     df_dx = (4 / 3) * safe_cubic_root(x)
     df_dy = (4 / 3) * safe_cubic_root(y)
 
@@ -53,10 +46,6 @@ def find_intersection_with_superellipse(f, origin, direction):
     initial_guess = np.array([(origin[0] + direction[0])/2, (origin[1] + direction[1])/2], dtype=np.float64)
     print(f"initial guess: {initial_guess}")
     solution = fsolve(equations, initial_guess, xtol=1e-12, maxfev=5000)
-
-    # initial_guess = [origin[0] + 2*direction[0], origin[1] + 2*direction[1]]
-    # result = minimize(lambda vars: sum([eq**2 for eq in equations(vars)]), initial_guess, method='L-BFGS-B')
-    # solution = result.x
 
     return solution
 
@@ -109,7 +98,7 @@ def simulate_bounce(p1, grad_S1, p2, grad_S2, iterations=1):
 
     return points_S1, points_S2
 
-def plot():
+def plot(points_S1, points_S2):
     # 可视化结果
     # Plotting Curve K: x^4 + y^4 = 1
     x_K = np.linspace(-1, 1, 400)
@@ -157,16 +146,22 @@ def plot():
     plt.axis("equal")
     plt.show()
 
-if __name__ == '__main__':
-
+def main(iterations):
     # Initial points on the superellipses
     p1 = np.array([0.5,(1-1./16)**(1/4)], dtype=np.float64)
     p2 = np.array([0.5,(1-0.5**(4/3))**(3/4)], dtype=np.float64)
 
     # Points lists for storing the trajectory
     points_S1, points_S2 = [p1], [p2]
-    plot()
+    plot(points_S1, points_S2)
     
     # Simulate and visualize
-    points_S1, points_S2 = simulate_bounce(p1, gradient_superellipse_K, p2, gradient_superellipse_T, iterations=1000)
-    plot()
+    points_S1, points_S2 = simulate_bounce(p1, gradient_superellipse_K, p2, gradient_superellipse_T, iterations=iterations)
+    plot(points_S1, points_S2)
+
+if __name__ == '__main__':
+
+    parser = argparse.ArgumentParser(description="Simulation with user-defined iterations.")
+    parser.add_argument('--iter', type=int, default=10, help="Number of iterations (default: 10)")
+    args = parser.parse_args()
+    main(args.iter)
