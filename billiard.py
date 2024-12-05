@@ -1,74 +1,85 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-# 计算射线与圆的交点
-def find_intersection_with_circle(center, radius, origin, direction):
-    """
-    Find intersection of a ray with a circle.
-    center: Circle center (x, y)
-    radius: Circle radius
-    origin: Ray origin (x, y)
-    direction: Ray direction (dx, dy)
-    """
-    cx, cy = center
-    ox, oy = origin
-    dx, dy = direction
-    
-    # Coefficients of the quadratic equation (t^2 * (dx^2 + dy^2) + 2t * ((ox - cx) * dx + (oy - cy) * dy) + ((ox - cx)^2 + (oy - cy)^2 - r^2) = 0)
-    a = dx**2 + dy**2
-    b = 2 * ((ox - cx) * dx + (oy - cy) * dy)
-    c = (ox - cx)**2 + (oy - cy)**2 - radius**2
-    
-    # Solve the quadratic equation
-    discriminant = b**2 - 4*a*c
-    
-    if discriminant < 0:
-        return None  # No intersection
-    
-    # Two solutions
-    t1 = (-b - np.sqrt(discriminant)) / (2 * a)
-    t2 = (-b + np.sqrt(discriminant)) / (2 * a)
-    
-    # Choose the smallest positive t (intersection point in the forward direction)
-    t = None
-    if t1 > 0 and t2 > 0:
-        t = min(t1, t2)
-    elif t1 > 0:
-        t = t1
-    elif t2 > 0:
-        t = t2
-    
-    if t is None:
-        return None  # No valid intersection
-    
-    # Return the intersection point
-    intersection = origin + t * np.array([dx, dy])
-    return intersection
+from scipy.optimize import fsolve
+from scipy.optimize import minimize
 
-# 计算法向量
-def compute_normal_to_circle(center, point):
-    """
-    Compute the normal vector at a point on the circle.
-    center: Circle center (x, y)
-    point: Point on the circle (x, y)
-    """
-    normal = point - center
-    return normal / np.linalg.norm(normal)  # Normalize the normal vector
+import cmath
 
-# 反转射线方向
+# Superellipse equations and their gradients
+def superellipse_K(x, y):
+    """ Superellipse equation K: x^4 + y^4 = 1 """
+    return x**4 + y**4 - 1
+
+def superellipse_T(x, y):
+    """ Superellipse equation T: x^(4/3) + y^(4/3) = 1 """
+    return (x**4)**(1/3) + (y**4)**(1/3) - 1
+
+def safe_cubic_root(x):
+    if np.isnan(x) or np.isinf(x):
+        return 0 # Or return some default value
+    
+    # return cmath.exp(cmath.log(x) / 3)
+    return np.cbrt(x)
+
+def gradient_superellipse_T(x, y):
+    """ Gradient of the superellipse T """
+    # df_dx = (4/3) * x**(1/3)
+    # df_dy = (4/3) * y**(1/3)
+
+    df_dx = (4 / 3) * safe_cubic_root(x)
+    df_dy = (4 / 3) * safe_cubic_root(y)
+
+    return np.array([df_dx, df_dy])
+
+def gradient_superellipse_K(x, y):
+    """ Gradient of the superellipse K """
+    df_dx = 4 * x**3
+    df_dy = 4 * y**3
+    return np.array([df_dx, df_dy])
+
+# Finding intersection with superellipse using numerical methods (fsolve)
+def find_intersection_with_superellipse(f, origin, direction):
+    """ Find intersection of ray with superellipse by solving f(x, y) = 0 """
+    def equations(vars):
+        x, y = vars
+        g = direction[0] * (y - origin[1]) - direction[1] * (x - origin[0])
+        
+        print(f"iter:  f(x,y) = {f(x,y)}, g(x,y) = {g}")
+        return [f(x, y), g]
+    
+    print(f"origin: {origin}, direction: {direction}")
+    
+    initial_guess = np.array([(origin[0] + direction[0])/2, (origin[1] + direction[1])/2], dtype=np.float64)
+    print(f"initial guess: {initial_guess}")
+    solution = fsolve(equations, initial_guess, xtol=1e-12, maxfev=5000)
+
+    # initial_guess = [origin[0] + 2*direction[0], origin[1] + 2*direction[1]]
+    # result = minimize(lambda vars: sum([eq**2 for eq in equations(vars)]), initial_guess, method='L-BFGS-B')
+    # solution = result.x
+
+    return solution
+
+# Compute normal vectors to the superellipse at a given point
+def compute_normal_to_superellipse(f, grad_f, point):
+    """ Compute normal vector at point on the superellipse """
+    grad = grad_f(point[0], point[1])
+    return grad / np.linalg.norm(grad)
+
+# Reverse direction if the ray is going outward (based on dot product with the normal)
 def reverse_direction_if_outward(direction, normal):
     if np.dot(direction, normal) > 0:  # Direction is outward, reverse it
         return -direction
     return direction
 
 # 模拟射线反弹过程
-def simulate_bounce(S1_center, S1_radius, S2_center, S2_radius, p1, p2, iterations=1):
+def simulate_bounce(p1, grad_S1, p2, grad_S2, iterations=1):
     """
     Simulate the bouncing process between two circles.
     """
     points_S1, points_S2 = [p1], [p2]
-    normal_S1 = compute_normal_to_circle(S1_center, p1)
-    normal_S2 = compute_normal_to_circle(S2_center, p2) # 从 p2 计算法向量，作为初始方向
+    normal_S1 = compute_normal_to_superellipse(None,grad_S1, p1)
+    normal_S2 = compute_normal_to_superellipse(None, grad_S2, p2) # 从 p2 计算法向量，作为初始方向
     print("start: normal_S1: ", normal_S1, ", normal_S2: ", normal_S2)
     
 
@@ -78,38 +89,64 @@ def simulate_bounce(S1_center, S1_radius, S2_center, S2_radius, p1, p2, iteratio
         # 从p1射线反弹
         dir2 = reverse_direction_if_outward(normal_S2, normal_S1)
         print(f"p1 start with direction: {dir2}")
-        n1 = find_intersection_with_circle(S1_center, S1_radius, points_S1[-1], dir2)
+        n1 = find_intersection_with_superellipse(superellipse_K, points_S1[-1], dir2)
         print("intersection n1:", n1)
         if n1 is None:
             break  # 如果没有交点，退出循环
-        normal_S1 = compute_normal_to_circle(S1_center, n1)
+        normal_S1 = compute_normal_to_superellipse(superellipse_K, gradient_superellipse_K, n1)
         points_S1.append(n1)
 
         # 对 p2 计算反弹
         # Reversing direction if it is outward
         dir1 = reverse_direction_if_outward(normal_S1, normal_S2)
         print(f"p2 start with direction: {dir1}")
-        n2 = find_intersection_with_circle(S2_center, S2_radius, points_S2[-1], dir1)
+        n2 = find_intersection_with_superellipse(superellipse_T, points_S2[-1], dir1)
         print("intersection n2:", n2)
         if n2 is None:
             break  # 如果没有交点，退出循环
-        normal_S2 = compute_normal_to_circle(S2_center, n2)
+        normal_S2 = compute_normal_to_superellipse(superellipse_T, gradient_superellipse_T, n2)
         points_S2.append(n2)
 
     return points_S1, points_S2
 
 def plot():
     # 可视化结果
-    theta = np.linspace(0, 2 * np.pi, 100)
-    circle_S1 = S1_radius * np.array([np.cos(theta), np.sin(theta)]).T + S1_center
-    circle_S2 = S2_radius * np.array([np.cos(theta), np.sin(theta)]).T + S2_center
+    # Plotting Curve K: x^4 + y^4 = 1
+    x_K = np.linspace(-1, 1, 400)
+    y_K = np.linspace(-1, 1, 400)
 
-    plt.plot(circle_S1[:, 0], circle_S1[:, 1], label="S1")
-    plt.plot(circle_S2[:, 0], circle_S2[:, 1], label="S2")
+    X_K, Y_K = np.meshgrid(x_K, y_K)
+    Z_K = X_K**4 + Y_K**4 - 1
+
+    # Plotting Curve T: x^(4/3) + y^(4/3) = 1
+    X_T, Y_T = np.meshgrid(x_K, y_K)
+    # Z_T = X_T**(4/3) + Y_T**(4/3) - 1
+    Z_T = (X_T**4)**(1/3) + (Y_T**4)**(1/3) - 1
+
+    # Plotting
+    plt.figure(figsize=(8, 8))
+
+    # Contour for Curve K (x^4 + y^4 = 1)
+    contour_K = plt.contour(X_K, Y_K, Z_K, levels=[0], colors='r')
+    # Contour for Curve T (x^(4/3) + y^(4/3) = 1)
+    contour_T = plt.contour(X_T, Y_T, Z_T, levels=[0], colors='b')
+
     plt.scatter(*zip(*points_S1), color="red", label="Bounce on S1")
     plt.scatter(*zip(*points_S2), color="blue", label="Bounce on S2")
 
-    # 添加迭代次数标签
+    # Connect points on S1 with lines
+    for i in range(len(points_S1) - 1):
+        x_vals = [points_S1[i][0], points_S1[i + 1][0]]
+        y_vals = [points_S1[i][1], points_S1[i + 1][1]]
+        plt.plot(x_vals, y_vals, color="red", linestyle="--")
+
+    # Connect points on S2 with lines (if you want to connect these as well)
+    for i in range(len(points_S2) - 1):
+        x_vals = [points_S2[i][0], points_S2[i + 1][0]]
+        y_vals = [points_S2[i][1], points_S2[i + 1][1]]
+        plt.plot(x_vals, y_vals, color="blue", linestyle="--")
+
+    # Adding iteration labels
     for i, point in enumerate(points_S1):
         plt.text(point[0], point[1], f"iter {i}", color="red", fontsize=9, ha="left", va="bottom")
     
@@ -120,22 +157,16 @@ def plot():
     plt.axis("equal")
     plt.show()
 
-
 if __name__ == '__main__':
-    # 圆心和半径
-    S1_center = np.array([-2, 0])
-    S1_radius = 1
-    S2_center = np.array([2, 0])
-    S2_radius = 1
 
-    # 初始点和方向
-    p1 = np.array([-2, 1])  # S1上的起点
-    p2 = np.array([2+1/np.sqrt(2), 1/np.sqrt(2)])  # S2上的起点
+    # Initial points on the superellipses
+    p1 = np.array([0.5,(1-1./16)**(1/4)], dtype=np.float64)
+    p2 = np.array([0.5,(1-0.5**(4/3))**(3/4)], dtype=np.float64)
 
+    # Points lists for storing the trajectory
     points_S1, points_S2 = [p1], [p2]
     plot()
-
-    # 进行模拟
-    points_S1, points_S2 = simulate_bounce(S1_center, S1_radius, S2_center, S2_radius, p1, p2, iterations=10)
-
+    
+    # Simulate and visualize
+    points_S1, points_S2 = simulate_bounce(p1, gradient_superellipse_K, p2, gradient_superellipse_T, iterations=1000)
     plot()
