@@ -43,9 +43,21 @@ def find_intersection_with_superellipse(f, origin, direction):
     
     print(f"origin: {origin}, direction: {direction}")
     
-    initial_guess = np.array([(origin[0] + direction[0])/2, (origin[1] + direction[1])/2], dtype=np.float64)
+    # initial_guess = np.array([(origin[0] + direction[0])/2, (origin[1] + direction[1])/2], dtype=np.float64)
+
+    step = np.dot(-origin, direction)
+    print("step for initial guess: ", step) 
+    initial_guess = np.array(origin + (step*2) * direction, dtype=np.float64)
+
     print(f"initial guess: {initial_guess}")
     solution = fsolve(equations, initial_guess, xtol=1e-12, maxfev=5000)
+
+    #trick
+    # if np.linalg.norm(solution - origin) < 1e-6:
+    #     print("warning: get origin as solution, try again")
+    #     initial_guess = np.array([(origin[0] + 2 * direction[0])/2, (origin[1] + 2 * direction[1])/2], dtype=np.float64)
+    #     print(f"initial guess: {initial_guess}")
+    #     solution = fsolve(equations, initial_guess, xtol=1e-12, maxfev=5000)
 
     return solution
 
@@ -78,8 +90,11 @@ def simulate_bounce(p1, grad_S1, p2, grad_S2, iterations=1):
         # 从p1射线反弹
         dir2 = reverse_direction_if_outward(normal_S2, normal_S1)
         print(f"p1 start with direction: {dir2}")
+
+    
         n1 = find_intersection_with_superellipse(superellipse_K, points_S1[-1], dir2)
         print("intersection n1:", n1)
+            
         if n1 is None:
             break  # 如果没有交点，退出循环
         normal_S1 = compute_normal_to_superellipse(superellipse_K, gradient_superellipse_K, n1)
@@ -137,10 +152,10 @@ def plot(points_S1, points_S2):
 
     # Adding iteration labels
     for i, point in enumerate(points_S1):
-        plt.text(point[0], point[1], f"iter {i}", color="red", fontsize=9, ha="left", va="bottom")
+        plt.text(point[0], point[1], f"{i},", color="red", fontsize=9, ha="left", va="bottom")
     
     for i, point in enumerate(points_S2):
-        plt.text(point[0], point[1], f"iter {i}", color="blue", fontsize=9, ha="left", va="bottom")
+        plt.text(point[0], point[1], f"{i},", color="blue", fontsize=9, ha="left", va="bottom")
 
     plt.legend()
     plt.axis("equal")
@@ -148,8 +163,9 @@ def plot(points_S1, points_S2):
 
 def main(iterations):
     # Initial points on the superellipses
-    p1 = np.array([0.5,(1-1./16)**(1/4)], dtype=np.float64)
-    p2 = np.array([0.5,(1-0.5**(4/3))**(3/4)], dtype=np.float64)
+    x = 0.5
+    p1 = np.array([x,(1-x**4)**(1/4)], dtype=np.float64)
+    p2 = np.array([x,(1-x**(4/3))**(3/4)], dtype=np.float64)
 
     # Points lists for storing the trajectory
     points_S1, points_S2 = [p1], [p2]
@@ -162,6 +178,6 @@ def main(iterations):
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description="Simulation with user-defined iterations.")
-    parser.add_argument('--iter', type=int, default=10, help="Number of iterations (default: 10)")
+    parser.add_argument('--iter', type=int, default=1, help="Number of iterations (default: 10)")
     args = parser.parse_args()
     main(args.iter)
