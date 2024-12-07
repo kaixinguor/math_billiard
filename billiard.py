@@ -42,8 +42,6 @@ def find_intersection_with_superellipse(f, origin, direction):
         return [f(x, y), g]
     
     print(f"origin: {origin}, direction: {direction}")
-    
-    # initial_guess = np.array([(origin[0] + direction[0])/2, (origin[1] + direction[1])/2], dtype=np.float64)
 
     step = np.dot(-origin, direction)
     print("step for initial guess: ", step) 
@@ -52,13 +50,10 @@ def find_intersection_with_superellipse(f, origin, direction):
     print(f"initial guess: {initial_guess}")
     solution = fsolve(equations, initial_guess, xtol=1e-12, maxfev=5000)
 
-    #trick
-    # if np.linalg.norm(solution - origin) < 1e-6:
-    #     print("warning: get origin as solution, try again")
-    #     initial_guess = np.array([(origin[0] + 2 * direction[0])/2, (origin[1] + 2 * direction[1])/2], dtype=np.float64)
-    #     print(f"initial guess: {initial_guess}")
-    #     solution = fsolve(equations, initial_guess, xtol=1e-12, maxfev=5000)
-
+    # print warning
+    if np.linalg.norm(solution - origin) < 1e-6:
+        print("warning: get origin as solution, incorrect")
+       
     return solution
 
 # Compute normal vectors to the superellipse at a given point
