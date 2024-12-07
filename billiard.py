@@ -38,7 +38,7 @@ def find_intersection_with_superellipse(f, origin, direction):
         x, y = vars
         g = direction[0] * (y - origin[1]) - direction[1] * (x - origin[0])
         
-        print(f"iter:  f(x,y) = {f(x,y)}, g(x,y) = {g}")
+        #print(f"iter:  f(x,y) = {f(x,y)}, g(x,y) = {g}")
         return [f(x, y), g]
     
     print(f"origin: {origin}, direction: {direction}")
@@ -153,7 +153,7 @@ def main(iterations):
 
     # Points lists for storing the trajectory
     points_S1, points_S2 = [p1], [p2]
-    plot(points_S1, points_S2)
+    #plot(points_S1, points_S2)
     
     # Simulate and visualize
     points_S1, points_S2 = simulate_bounce(p1, gradient_superellipse_K, p2, gradient_superellipse_T, iterations=iterations)
